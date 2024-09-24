@@ -4,39 +4,30 @@ REM OIS - OSINT IOC Scanner
 REM Author: Suchit Reddi
 REM Opens given IP/url/domain in commonly used lookup sites.
 
-echo " .--..--..--..--..--..--..--..--..--..--..--..--..--..--..--..--..--..--..--. "
-echo "/ .. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \"
-echo "\ \/\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ \/ /"
-echo " \/ /`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'\/ / "
-echo " / /\    /$$$$$$          /$$           /$$                              / /\ "
-echo "/ /\ \  /$$__  $$        |__/          | $$                             / /\ \"
-echo "\ \/ / | $$  \ $$ /$$$$$$$/$$/$$$$$$$ /$$$$$$                           \ \/ /"
-echo " \/ /  | $$  | $$/$$_____| $| $$__  $|_  $$_/                            \/ / "
-echo " / /\  | $$  | $|  $$$$$$| $| $$  \ $$ | $$                              / /\ "
-echo "/ /\ \ | $$  | $$\____  $| $| $$  | $$ | $$ /$$                         / /\ \"
-echo "\ \/ / |  $$$$$$//$$$$$$$| $| $$  | $$ |  $$$$/                         \ \/ /"
-echo " \/ /   \______/|_______/|__|__/  |__/  \___/                            \/ / "
-echo " / /\   /$$$$$$                                                          / /\ "
-echo "/ /\ \ |_  $$_/                                                         / /\ \"
-echo "\ \/ /   | $$   /$$$$$$  /$$$$$$$                                       \ \/ /"
-echo " \/ /    | $$  /$$__  $$/$$_____/                                        \/ / "
-echo " / /\    | $$ | $$  \ $| $$                                              / /\ "
-echo "/ /\ \   | $$ | $$  | $| $$                                             / /\ \"
-echo "\ \/ /  /$$$$$|  $$$$$$|  $$$$$$$                                       \ \/ /"
-echo " \/ /  |______/\______/ \_______/                                        \/ / "
-echo " / /\    /$$$$$$                                                         / /\ "
-echo "/ /\ \  /$$__  $$                                                       / /\ \"
-echo "\ \/ / | $$  \__/ /$$$$$$$ /$$$$$$ /$$$$$$$ /$$$$$$$  /$$$$$$  /$$$$$$  \ \/ /"
-echo " \/ /  |  $$$$$$ /$$_____/|____  $| $$__  $| $$__  $$/$$__  $$/$$__  $$  \/ / "
-echo " / /\   \____  $| $$       /$$$$$$| $$  \ $| $$  \ $| $$$$$$$| $$  \__/  / /\ "
-echo "/ /\ \  /$$  \ $| $$      /$$__  $| $$  | $| $$  | $| $$_____| $$       / /\ \"
-echo "\ \/ / |  $$$$$$|  $$$$$$|  $$$$$$| $$  | $| $$  | $|  $$$$$$| $$       \ \/ /"
-echo " \/ /   \______/ \_______/\_______|__/  |__|__/  |__/\_______|__/        \/ / "
-echo " / /\.--..--..--..--..--..--..--..--..--..--..--..--..--..--..--..--..--./ /\ "
-echo "/ /\ \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \.. \/\ \"
-echo "\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `'\ `' /"
-echo " `--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--'`--' "
-echo OIS - OSINT IOC Scanner
+echo   /$$$$$$          /$$           /$$                            
+echo  /$$__  $$        ^|__/          ^| $$                            
+echo ^| $$  \ $$ /$$$$$$$/$$/$$$$$$$ /$$$$$$                          
+echo ^| $$  ^| $$/$$_____^| $^| $$__  $^|_  $$_/                          
+echo ^| $$  ^| $^|  $$$$$$^| $^| $$  \ $$ ^| $$                            
+echo ^| $$  ^| $$\____  $^| $^| $$  ^| $$ ^| $$ /$$                        
+echo ^|  $$$$$$//$$$$$$$^| $^| $$  ^| $$ ^|  $$$$/                        
+echo  \______/^|_______/^|__^|__/  ^|__/  \___/                          
+echo  /$$$$$$                                                        
+echo ^|_  $$_/                                                        
+echo   ^| $$   /$$$$$$  /$$$$$$$                                      
+echo   ^| $$  /$$__  $$/$$_____/                                      
+echo   ^| $$ ^| $$  \ $^| $$                                           
+echo  /$$$$$^|  $$$$$$^|  $$$$$$$                                      
+echo ^|______/\______/ \_______/                                      
+echo   /$$$$$$                                                       
+echo  /$$__  $$                                                      
+echo ^| $$  \__/ /$$$$$$$ /$$$$$$ /$$$$$$$ /$$$$$$$  /$$$$$$  /$$$$$$ 
+echo ^|  $$$$$$ /$$_____/^|____  $^| $$__  $^| $$__  $$/$$__  $$/$$__  $$
+echo  \____  $^| $$       /$$$$$$^| $$  \ $^| $$  \ $^| $$$$$$$^| $$  \__/
+echo  /$$  \ $^| $$      /$$__  $^| $$  ^| $^| $$  ^| $^| $$_____^| $$      
+echo ^|  $$$$$$^|  $$$$$$^|  $$$$$$^| $$  ^| $^| $$  ^| $^|  $$$$$$^| $$      
+echo  \______/ \_______/\_______^|__/  ^|__^|__/  ^|__/\_______^|__/     
+
 echo By Suchit Reddi
 
 REM -------------------Script Start-----------------------------------------------
@@ -58,6 +49,7 @@ set urlvoid="https://urlvoid.com/scan"
 REM <----Just IP Lookup---->
 set abip="https://www.abuseipdb.com/check"
 
+echo.
 echo Type of Lookup:
 echo [1] Domain
 echo [2] IP
@@ -71,7 +63,7 @@ if "%lookup%"=="1" (
 ) else if "%lookup%"=="3" (
     call :url
 ) else (
-    echo Invalid number! Select from 1, 2, 3... && goto start
+    echo Invalid number! Select from 1, 2, 3... && echo. && goto start
 )
 
 REM ------------------Domain Lookup-----------------------------------------------
@@ -126,22 +118,44 @@ set "url=%~1"
 set "enc_url="
 set "enc_url_2="
 
+REM Loop through the URL characters for single encoding
 for /L %%i in (0,1,255) do (
     set "chr=!url:~%%i,1!"
     if "!chr!"=="" goto :breakLoop
+
+    REM Encode special characters
     if "!chr!"==":" (
         set "enc_url=!enc_url!%%3A"
-        set "enc_url_2=!enc_url_2!%%253A"
     ) else if "!chr!"=="/" (
         set "enc_url=!enc_url!%%2F"
-        set "enc_url_2=!enc_url_2!%%252F"
+    ) else if "!chr!"=="&" (
+        set "enc_url=!enc_url!%%26"
+    ) else if "!chr!"=="+" (
+        set "enc_url=!enc_url!%%2B"
+    ) else if "!chr!"==" " (
+        set "enc_url=!enc_url!%%20"
+    ) else if "!chr!"=="#" (
+        set "enc_url=!enc_url!%%23"
+    ) else if "!chr!"=="?" (
+        set "enc_url=!enc_url!%%3F"
+    ) else if "!chr!"=="=" (
+        set "enc_url=!enc_url!%%3D"
+    ) else if "!chr!"=="@" (
+        set "enc_url=!enc_url!%%40"
+    ) else if "!chr!"=="$" (
+        set "enc_url=!enc_url!%%24"
+    ) else if "!chr!"=="%" (
+        set "enc_url=!enc_url!%%25"
     ) else (
         set "enc_url=!enc_url!!chr!"
-        set "enc_url_2=!enc_url_2!!chr!"
     )
 )
 
 :breakLoop
+REM Perform the second pass (double encoding)
+REM Double encode by replacing % with %25 in enc_url
+set "enc_url_2=!enc_url:%%=%%25!"
+
 endlocal & set "enc_url=%enc_url%" & set "enc_url_2=%enc_url_2%"
 goto :eof
 
