@@ -35,19 +35,22 @@ REM -------------------Script Start---------------------------------------------
 :start
 
 REM <----All round Lookup---->
-set ibm="https://exchange.xforce.ibmcloud.com"
+set ibm=https://exchange.xforce.ibmcloud.com
+set talos=https://talosintelligence.com/reputation_center/lookup?search
+set shodan=https://www.shodan.io/search?query
 
 REM <----Domain & IP Lookup---->
-set vt="https://www.virustotal.com/gui/search"
-set talos="https://talosintelligence.com/reputation_center/lookup?search"
-set whois="https://www.whois.com/whois"
+set vt=https://www.virustotal.com/gui/search
+set whois=https://www.whois.com/whois
 
 REM <----Just Domain Lookup---->
-set norton="https://sitereview.bluecoat.com/#/lookup-result"
-set urlvoid="https://urlvoid.com/scan"
+set norton=https://sitereview.bluecoat.com/#/lookup-result
+set urlvoid=https://urlvoid.com/scan
+set ggl=https://transparencyreport.google.com/safe-browsing/search?url
+set urlscan=https://urlscan.com/domain
 
 REM <----Just IP Lookup---->
-set abip="https://www.abuseipdb.com/check"
+set abip=https://www.abuseipdb.com/check
 
 echo.
 echo Type of Lookup:
@@ -71,30 +74,34 @@ REM ------------------Domain Lookup---------------------------------------------
 echo.
 set /p dom="Enter domain (ex:- suchitreddi.github.io): "
 
-start msedge -new-window "%vt%/%dom%" "%norton%/%dom%" "%whois%/%dom%" "%talos%=%dom%" "%ibm%/url/%dom%" "%urlvoid%/%dom%"
+start msedge -new-window "%vt%/%dom%" "%urlscan%/%dom%" "%norton%/%dom%" "%ggl%=%dom%" "%whois%/%dom%" "%talos%=%dom%" "%ibm%/url/%dom%" "%urlvoid%/%dom%" "%shodan%=%dom%"
+echo. && echo Select and copy links using Ctrl+Shift+V && echo.
+
+echo ------------------------------------------------------------------
+echo.
+echo %vt%/%dom%  && echo %urlscan%/%dom%  && echo %norton%/%dom%  && echo %ggl%=%dom%  && echo %whois%/%dom%  && echo %talos%=%dom%  && echo %ibm%/url/%dom%  && echo %urlvoid%/%dom%  && echo %shodan%=%dom%
 
 echo.
-echo Done!
-echo.
-echo -----------------------------------------------------------------------------
+echo ------------------------------------------------------------------
 echo.
 goto end
-
 
 REM ----------------------IP Lookup-----------------------------------------------
 :ip
 echo.
 set /p ip_addr="Enter IP address (ex:- 8.8.8.8): "
 
-start msedge -new-window "%vt%/%ip_addr%" "%talos%=%ip_addr%" "%ibm%/ip/%ip_addr%" "%whois%/%ip_addr%" "%abip%/%ip_addr%"
+start msedge -new-window "%vt%/%ip_addr%" "%talos%=%ip_addr%" "%ibm%/ip/%ip_addr%" "%whois%/%ip_addr%" "%abip%/%ip_addr%" "%shodan%=%ip_addr%"
+echo. && echo Select and copy links using Ctrl+Shift+V && echo.
+
+echo ------------------------------------------------------------------
+echo.
+echo %vt%/%ip_addr% && echo %whois%/%ip_addr% && echo %ibm%/url/%ip_addr%  && echo %shodan%=%ip_addr% && echo %talos%=%ip_addr% && echo %abip%/%ip_addr%
 
 echo.
-echo Done!
-echo.
-echo -----------------------------------------------------------------------------
+echo ------------------------------------------------------------------
 echo.
 goto end
-
 
 REM ----------------------URL Lookup-----------------------------------------------
 :url
@@ -102,12 +109,15 @@ echo.
 set /p url_addr="Enter URL (ex:- https://suchitreddi.github.io/Work/scripts.html): "
 call :EncodeURL "%url_addr%"
 
-start msedge -new-window "%vt%/%enc_url_2%" "%ibm%/url/%enc_url%"
+start msedge -new-window "%vt%/%enc_url_2%" "%ggl%=%enc_url%" "%ibm%/url/%enc_url%" "%shodan%=%enc_url%" "%talos%=%enc_url%"
+echo. && echo Select and copy links using Ctrl+Shift+V && echo.
+
+echo ------------------------------------------------------------------
+echo.
+echo %vt%/%enc_url_2% && echo %ggl%=%enc_url% && echo %ibm%/url/%enc_url%  && echo %shodan%=%enc_url% && echo %talos%=%enc_url%
 
 echo.
-echo Done!
-echo.
-echo -----------------------------------------------------------------------------
+echo ------------------------------------------------------------------
 echo.
 goto end
 
@@ -162,7 +172,11 @@ goto :eof
 :end
 set /p another="Do you want to search for another IOC? (y/n) "
 echo.
-if /i %another%==y (goto start)
-if /i %another%==n (echo Happy Hunting! Press any key to exit... && pause>nul && exit)
-
-REM -------------------Script End-------------------------------------------------
+if /i %another%==y (
+    goto start
+) else if /i %another%==n (
+    echo Happy Hunting! Press any key to exit... && pause>nul && exit
+) else (
+    echo Invalid option! Select y or n... && echo. && goto end
+)
+REM -------------------Script End---------------------------------------
