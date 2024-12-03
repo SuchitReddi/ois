@@ -1,8 +1,5 @@
 @echo off
-
-REM OIS - OSINT IOC Scanner
-REM Author: Suchit Reddi
-REM Opens given IP/url/domain/hash in commonly used lookup sites.
+REM This tool opens given IOC (Domain/IP/url/hash) in reputed OSINT sites.
 
 echo   /$$$$$$          /$$           /$$                            
 echo  /$$__  $$        ^|__/          ^| $$                            
@@ -26,17 +23,24 @@ echo ^|  $$$$$$ /$$_____/^|____  $^| $$__  $^| $$__  $$/$$__  $$/$$__  $$
 echo  \____  $^| $$       /$$$$$$^| $$  \ $^| $$  \ $^| $$$$$$$^| $$  \__/
 echo  /$$  \ $^| $$      /$$__  $^| $$  ^| $^| $$  ^| $^| $$_____^| $$      
 echo ^|  $$$$$$^|  $$$$$$^|  $$$$$$^| $$  ^| $^| $$  ^| $^|  $$$$$$^| $$      
-echo  \______/ \_______/\_______^|__/  ^|__^|__/  ^|__/\_______^|__/     
+echo  \______/ \_______/\_______^|__/  ^|__^|__/  ^|__/\_______^|__/  
 
-echo By Suchit Reddi
+echo By 5herl0ck
 echo.
-REM -------------------Script Start-----------------------------------------------
 
-REM <----All round Lookup---->
+REM -------------------Script Start-----------------------------------
+
+REM Assign OSINT links to variables.
+
+REM <----Browser, IOC Limit---->
+set browser=msedge
+set ioc_limit=4
+set max_length=1023
+
+REM <----All round---->
 set vt=https://www.virustotal.com/gui/search
 set ibm=https://exchange.xforce.ibmcloud.com
 set talos=https://talosintelligence.com/reputation_center/lookup?search
-set talos_h=https://talosintelligence.com/talos_file_reputation?s
 set kasper=https://opentip.kaspersky.com
 set otx=https://otx.alienvault.com/browse/global/pulses?q
 
@@ -45,7 +49,6 @@ set shodan=https://www.shodan.io/search?query
 
 REM <----Domain, URL---->
 set norton=https://sitereview.bluecoat.com/#/lookup-result
-set ggl=https://transparencyreport.google.com/safe-browsing/search?url
 
 REM <----Domain, IP---->
 set abip=https://www.abuseipdb.com/check
@@ -54,6 +57,10 @@ set urlscan=https://urlscan.io/domain
 
 REM <----Just Domain---->
 set urlvoid=https://urlvoid.com/scan
+
+REM <====Deprecated====>
+REM set ggl=https://transparencyreport.google.com/safe-browsing/search?url
+REM set talos_h=https://talosintelligence.com/talos_file_reputation?s
 
 :start
 setlocal enabledelayedexpansion
@@ -73,78 +80,119 @@ if "%lookup%"=="1" (
 ) else if "%lookup%"=="4" (
     call :lookup_handler hash
 ) else (
-    echo Invalid number! Select from 1 to 4... && echo. && goto start
+    echo Invalid number^^! Select from available options... && echo.
 )
 goto start
 
 :lookup_handler
 REM Argument %1 will be used to distinguish between domain, ip, url, or hash
 set type=%1
-set /p ioc="Enter IOCs (max 3): "
+set ioc=
+set count=0
+set /p ioc="Enter IOCs (max !ioc_limit! IOCs): "
 echo. 
+
+REM Check if the IOC input is empty
+if "%ioc%"=="" (
+    echo Enter valid IOCs. With great IOCs come great results^^! && echo. && set lookup= && goto start
+)
+
+REM Calculate the length of the IOC input
+set ioc_length=0
+for /l %%A in (0,1,1024) do (
+    if "!ioc:~%%A,1!"=="" (
+        set ioc_length=%%A
+        goto :length_checked
+    )
+)
+:length_checked
+
+if %ioc_length% geq %max_length% (
+    echo. && echo.
+    echo The input exceeds the cmd's maximum string length of 1024 characters. Please separate them if there are multiple IOCs.
+    echo.
+    endlocal && set ioc= && set lookup= && set count= && goto start
+)
 
 REM Replace commas, OR, or with spaces to normalize the input
 set ioc=%ioc:,= % && set ioc=%ioc: OR = % && set ioc=%ioc: or = %
-set count=0
+set total_iocs=0
+REM Count the number of IOCs
+FOR %%i IN (%ioc%) DO (
+    set /A total_iocs+=1
+)
+
+REM Check if the total IOCs exceed the limit
+if !total_iocs! gtr !ioc_limit! (
+    echo You have entered !total_iocs! IOCs, which exceeds the current limit of !ioc_limit!.
+    set /p sure="Press N to cancel, or any key to continue: "
+	echo.
+    if /I "!sure!"=="n" (
+        endlocal && set ioc= && set lookup= && goto start
+    )
+)
 
 REM Loop through each IOC in the user input
 FOR %%i IN (%ioc%) DO (
     REM Increment the counter
     set /A count+=1
 
-    if !count! leq 3 (
+    if !count! leq !ioc_limit! (
         if !type!==domain (
             REM ------------------Domain Lookup------------------------------------
-            set "domains=!vt!/%%i !otx!=%%i !kasper!/%%i/?tab=lookup !urlscan!/%%i !norton!/%%i !ggl!=%%i !whois!/%%i !talos!=%%i !ibm!/url/%%i !abip!/%%i !urlvoid!/%%i !shodan!=%%i"
-
-            start msedge -new-window !domains!
-
+            set "domains=!vt!/%%i !norton!/%%i !urlscan!/%%i !whois!/%%i !talos!=%%i !ibm!/url/%%i !abip!/%%i !shodan!=%%i !urlvoid!/%%i"
+            start !browser! -new-window !domains!
             REM Display the URLs for the user to copy
             echo IOC: %%i
             echo ------------------------------------------------------------------
-            echo %vt%/%%i && echo %otx%=%%i && echo %kasper%/%%i/?tab=lookup && echo %urlscan%/%%i && echo %norton%/%%i && echo %ggl%=%%i && echo %whois%/%%i && echo %talos%=%%i && echo %ibm%/url/%%i && echo %abip%/%%i && echo %urlvoid%/%%i && echo %shodan%=%%i
+            echo %vt%/%%i && echo %norton%/%%i && echo %urlscan%/%%i && echo %whois%/%%i && echo %talos%=%%i && echo %ibm%/url/%%i && echo %abip%/%%i && echo %shodan%=%%i && echo %urlvoid%/%%i
             echo ------------------------------------------------------------------
+			echo Useful sites not included in the script:
+			echo https://urlscan.io
+            echo https://viewdns.info
             echo.
         ) else if !type!==ip (
             REM ----------------------IP Lookup------------------------------------
-            set "ips=!vt!/%%i !otx!=%%i !kasper!/%%i/?tab=lookup !urlscan!/%%i !norton!/%%i !ggl!=%%i !whois!/%%i !talos!=%%i !ibm!/url/%%i !abip!/%%i !shodan!=%%i"
-
-            start msedge -new-window !ips!
-
+            set "ips=!vt!/%%i !urlscan!/%%i !whois!/%%i !talos!=%%i !ibm!/url/%%i !abip!/%%i !shodan!=%%i"
+            start !browser! -new-window !ips!
             echo IOC: %%i
             echo ------------------------------------------------------------------
-            echo %vt%/%%i && echo %otx%=%%i && echo %kasper%/%%i/?tab=lookup && echo %urlscan%/%%i && echo %norton%/%%i && echo %ggl%=%%i && echo %whois%/%%i && echo %talos%=%%i && echo %ibm%/url/%%i && echo %abip%/%%i && echo %shodan%=%%i
+            REM for %%A in (!ips!) do echo %%A
+            echo %vt%/%%i && echo %urlscan%/%%i && echo %whois%/%%i && echo %talos%=%%i && echo %ibm%/url/%%i && echo %abip%/%%i && echo %shodan%=%%i
             echo ------------------------------------------------------------------
+            echo Useful sites not included in the script:
+            echo https://viewdns.info
             echo.
         ) else if !type!==url (
             REM ----------------------URL Lookup-----------------------------------
-            call :EncodeURL %%i
-            set "urls=%vt%/!enc_url_2! %otx%=!enc_url! %kasper%/!enc_url!/?tab=lookup %norton%/!enc_url_2! %ggl%=!enc_url! %ibm%/url/!enc_url! %shodan%=!enc_url! %talos%=!enc_url!"
-
-            start msedge -new-window !urls!
-
+            call :EncodeURL "%%i"
+            set "urls=%vt%/!enc_url_2! %norton%/!enc_url_2! %ibm%/url/!enc_url! %talos%=!enc_url!"
+            start !browser! -new-window !urls!
             echo IOC: %%i
             echo ------------------------------------------------------------------
-            echo %vt%/!enc_url_2! && echo %otx%=!enc_url! && echo %kasper%/!enc_url!/?tab=lookup && echo %norton%/!enc_url_2! && echo %ggl%=!enc_url! && echo %ibm%/url/!enc_url! && echo %shodan%=!enc_url! && echo %talos%=!enc_url!
+            echo %vt%/!enc_url_2! && echo %norton%/!enc_url_2! && echo %ibm%/url/!enc_url! && echo %talos%=!enc_url!
             echo ------------------------------------------------------------------
+			echo Useful sites not included in the script:
+			echo https://urlscan.io
             echo.
         ) else if !type!==hash (
             REM ----------------------Hash Lookup-----------------------------------
-            set "hashes=!vt!/%%i !otx!=%%i !kasper!/%%i/results?tab=lookup !ibm!/malware/%%i !talos_h!=%%i"
-
-            start msedge -new-window !hashes!
-
+            set "hashes=!vt!/%%i !otx!=%%i !kasper!/%%i/results?tab=lookup !ibm!/malware/%%i"
+            start !browser! -new-window !hashes!
             echo IOC: %%i
             echo ------------------------------------------------------------------
-            echo %vt%/%%i && echo %otx%=%%i && echo %kasper%/%%i/results?tab=lookup && echo %ibm%/malware/%%i && echo %talos_h%=%%i
+            echo %vt%/%%i && echo %otx%=%%i && echo %kasper%/%%i/results?tab=lookup && echo %ibm%/malware/%%i
             echo ------------------------------------------------------------------
             echo.
         )
     ) else (
-        echo Sky is the limit... but 3 is the limit for now && echo.
+		echo Sky is the limit... but !ioc_limit! is the limit for now && echo.
     )
 )
+
+endlocal && set ioc= && set lookup= && set type=
 goto start
+
 REM -------------------Script End---------------------------------------
 
 REM -------------------URL Encoding Function----------------------------
