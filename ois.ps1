@@ -1,3 +1,6 @@
+# WI GENERAL TASK - 205292
+# This is the first part in the automation of triage investigation (can be used for other IOC related tickets too). Opens given Domain/IP/url/hash in reputed OSINT sites.
+
 Write-Host @"
    /#####\          /##            __                           
   /##__ ##|  ____  |__/           |##|                         
@@ -36,7 +39,7 @@ $maxLength = 1023
 $osintUrls = @{
     # <----All round---->
     "vt" = "https://www.virustotal.com/gui/search"
-    "ibm" = "https://exchange.xforce.ibmcloud.com"
+    "ibm" = "https://exchange.xforce.ibmcloud.com" #No URLs
     "talos" = "https://talosintelligence.com/reputation_center/lookup?search"
     "kasper" = "https://opentip.kaspersky.com"
     "otx" = "https://otx.alienvault.com/browse/global/pulses?q"
@@ -49,7 +52,7 @@ $osintUrls = @{
     "whois" = "https://www.whois.com/whois"
     "urlscan" = "https://urlscan.io/domain"
     "shodan" = "https://www.shodan.io/search?query"
-    
+	    
     # <====Deprecated====>
     # "ggl" = "https://transparencyreport.google.com/safe-browsing/search?url"
     # "talos_h" = "https://talosintelligence.com/talos_file_reputation?s"
@@ -69,29 +72,33 @@ Function Encode-URL {
 
 # <----Functions to Validate IOC Types---->
 
-# Check if a string is a valid IP address
-Function Is-ValidIP {
-    Param ([string]$ip)
-    return $ip -match '^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+Function Classify-IOC {
+    Param (
+        [string]$ioc
+    )
+
+    # Regex patterns for each type
+    $domainRegex = '^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$'  # Simple domain
+    $urlRegex = '^((https?|http?|ftp):\/\/)?([a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,})(\/.*)?$'  # URL with optional protocol and path
+    $ipRegex = '^(\d{1,3}\.){3}\d{1,3}$'  # IPv4 address
+    $hashRegex = '^[a-fA-F0-9]{32,64}$'   # Hash (MD5, SHA-256, etc.)
+
+    If ($ioc -match $ipRegex) {
+        Return "ip"
+    } elseif ($ioc -match $hashRegex) {
+        Return "hash"
+    } elseif ($ioc -match $urlRegex) {
+        # Distinguish between domain and URL
+        If ($ioc -match $domainRegex -and -not $ioc.Contains("/")) {
+            Return "domain"
+        } else {
+            Return "url"
+        }
+    } else {
+        Return "unknown"
+    }
 }
 
-# Check if a string is a valid domain
-Function Is-ValidDomain {
-    Param ([string]$domain)
-    return $domain -match '^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$'
-}
-
-# Check if a string is a valid URL
-Function Is-ValidURL {
-    Param ([string]$url)
-    return $url -match '^(https?|http?|ftp)://[^\s/$.?#].[^\s]*$'
-}
-
-# Check if a string is a valid hash (SHA256)
-Function Is-ValidHash {
-    Param ([string]$hash)
-    return $hash -match '^[a-fA-F0-9]{64}$'
-}
 
 # <----Lookup IOC Handler Function---->
 Function Lookup-Handler {
@@ -126,30 +133,29 @@ Function Lookup-Handler {
 			# -------------------URL Lookup--------------------
             $url = $ioc
 
-            # Remove http:// or https:// for Norton (ensure domain-only)
+            # Remove http:// or https:// for TG
             if ($url -match '^(https?://)') {
-                $urlNorton = $url.Substring($matches[1].Length)  # Remove 'http://' or 'https://'
+                $urlnohttp = $url.Substring($matches[1].Length)  # Remove 'http://' or 'https://'
             } else {
-                $urlNorton = $url
+                $urlnohttp = $url
             }
 
             # For VirusTotal, always add "https://" if not already present
             if ($url -match '^(https?://)') {
-                $urlVirusTotal = $url  # No change if already has http:// or https://
+                $urlhttp = $url  # No change if already has http:// or https://
             } else {
-                $urlVirusTotal = "https://$url"  # Add https:// if missing
+                $urlhttp = "https://$url"  # Add https:// if missing
             }
 
             # Encode both the original URL and the Norton URL
             $encodedOriginal = Encode-URL -url $ioc
-            $encodedNorton = Encode-URL -url $urlNorton
-            $encodedVirusTotal = Encode-URL -url $urlVirusTotal  # Ensure the modified URL is encoded for VT
+            $encodedNohttp = Encode-URL -url $urlnohttp
+            $encodedHttp = Encode-URL -url $urlhttp  # Ensure the modified URL is encoded for VT
 
             # Construct URLs for different services
             $urls = @(
-                "$($osintUrls.vt)/$($encodedVirusTotal.Double)",  # VirusTotal with https://
-                "$($osintUrls.norton)/$($encodedNorton.Single)",   # Norton without https:// or http://
-                "$($osintUrls.ibm)/url/$($encodedOriginal.Single)",
+                "$($osintUrls.vt)/$($encodedHttp.Double)",  # VirusTotal with https://
+                "$($osintUrls.norton)/$($encodedOriginal.Double)",
                 "$($osintUrls.talos)=$($encodedOriginal.Single)"
             )
         } elseif ($type -eq "hash") {
@@ -164,7 +170,7 @@ Function Lookup-Handler {
 
         # Open URLs in the browser and display them in the terminal
         Start-Process $browser -ArgumentList ("-new-window", ($urls -join " "))
-        Write-Host "IOC: $ioc"
+        Write-Host "IOC ($type): $ioc"
         Write-Host "--------------------------------------------------"
         $urls | ForEach-Object { Write-Host $_ }
         Write-Host "--------------------------------------------------"
@@ -199,33 +205,30 @@ Do {
             If ($confirm -ieq "n") { Continue }
         }
 
-    # Separate the IOCs by type
-    $ipIocs = @()
-    $domainIocs = @()
-    $urlIocs = @()
-    $hashIocs = @()
+	# Separate the IOCs by type
+	$ipIocs = @()
+	$domainIocs = @()
+	$urlIocs = @()
+	$hashIocs = @()
 
-    # Classify each IOC
-    foreach ($ioc in $iocs) {
-        $ioc = $ioc.Trim()
+	# Classify each IOC
+	foreach ($ioc in $iocs) {
+		$ioc = $ioc.Trim()
+		$classification = Classify-IOC -ioc $ioc
 
-        if (Is-ValidIP $ioc) {
-            $ipIocs += $ioc
-        } elseif (Is-ValidDomain $ioc) {
-            $domainIocs += $ioc
-        } elseif (Is-ValidURL $ioc) {
-            $urlIocs += $ioc
-        } elseif (Is-ValidHash $ioc) {
-            $hashIocs += $ioc
-        } else {
-            Write-Host "Invalid IOC: $ioc" -ForegroundColor Red
-        }
-    }
+		switch ($classification) {
+			"ip" { $ipIocs += $ioc }
+			"domain" { $domainIocs += $ioc }
+			"url" { $urlIocs += $ioc }
+			"hash" { $hashIocs += $ioc }
+			default { Write-Host "Invalid IOC: $ioc" -ForegroundColor Red }
+		}
+	}
 
-    # Lookup the IOCs by type
-    If ($hashIocs) { Lookup-Handler -type "hash" -iocs $hashIocs }
-    If ($ipIocs) { Lookup-Handler -type "ip" -iocs $ipIocs }
-    If ($domainIocs) { Lookup-Handler -type "domain" -iocs $domainIocs }
-    If ($urlIocs) { Lookup-Handler -type "url" -iocs $urlIocs }
+	# Lookup the IOCs by type
+	If ($hashIocs) { Lookup-Handler -type "hash" -iocs $hashIocs }
+	If ($ipIocs) { Lookup-Handler -type "ip" -iocs $ipIocs }
+	If ($domainIocs) { Lookup-Handler -type "domain" -iocs $domainIocs }
+	If ($urlIocs) { Lookup-Handler -type "url" -iocs $urlIocs }
 
 } While ($true)
