@@ -1055,8 +1055,7 @@ Function Lookup-Handler {
                         }
                     }
 					
-                    if ($resultipq.asnipq) { Write-ColoredLine "" "ASN: " "$($resultipq.asnipq)" DarkCyan }
-					
+                    if ($resultipq.asnipq) { Write-ColoredLine "" "ASN (IPQuery): " "$($resultipq.asnipq)" DarkCyan }
 					if ($resultipq.orgipq -or $resultipq.ispipq) {
 						if ($resultipq.orgipq -eq $resultipq.ispipq) { 
 							Write-ColoredLine "" "AS Org/ISP: " "$($resultipq.orgipq)" DarkCyan 
@@ -1067,7 +1066,10 @@ Function Lookup-Handler {
 						}
 					}
 					
-                    if (-not $resultipq.asnipq -and $resultvt.asn)  { Write-ColoredLine "" "AS details: " "AS $($resultvt.asn) ($($resultvt.asowner))" DarkCyan }
+					$vtasn = "AS$($resultvt.asn)"
+                    if ($resultipq.asnipq -and ($vtasn -ne $resultipq.asnipq))  { Write-ColoredLine "" "ASN (Virus Total): " "$vtasn" DarkCyan }
+					if (($resultvt.asowner -ne $resultipq.orgipq) -and ($resultvt.asowner -ne $resultipq.ispipq)) { Write-ColoredLine "" "ASN Owner (Virus Total): " "$($resultvt.asowner)" DarkCyan }
+					
                     if ($resultvt.registrar)  { Write-ColoredLine "" "Registrar: " "$($resultvt.registrar)" Yellow }
                     if ($resultvt.rdapname)  { Write-ColoredLine "" "Name: " "$($resultvt.rdapname)" Yellow }
 					
