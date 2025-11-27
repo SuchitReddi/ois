@@ -91,7 +91,7 @@ Function Edit-Configuration {
                     $iocLimit.Value = [int]$newIocLimit
                     $config.ioclim = $iocLimit.Value
                     $config | ConvertTo-Json | Set-Content $configPath
-                    Write-ColoredLine "IOC limit changed to" "$newIocLimit" "" Yellow
+                    Write-ColoredLine "IOC limit changed to " "$newIocLimit" "" Yellow
                 } else {
                     Write-Host "Invalid input. Please enter a numeric value." -ForegroundColor Red
                 }
@@ -348,7 +348,7 @@ function Invoke-Urlscan {
 
 	# Use the decrypted $apikey for the API call
 	$theapikey = @{
-		"API-Key" = "$apikey"
+		"api-key" = "$apikey"
 	}
 	$theBody = @{
 		"url" = "$url"
@@ -361,9 +361,14 @@ function Invoke-Urlscan {
 
 		# Getting just the section of data that is relevant... Only need $sendtoapi.api, but the UUID is nice to have as well
 		$scanuuid = $sendtoapi.uuid
+                $uscanapi = $sendtoapi.api
 		$oisoutput = $sendtoapi.result
 		$ssurl = "https://urlscan.io/screenshots/$scanuuid.png"
 		$statmsg = $sendtoapi.message #Only giving submission successful if successful, but no result otherwise
+
+                #Start-Sleep -Seconds 20
+                #$uscanres = Invoke-RestMethod -Method Get -Uri "$uscanapi"
+                #Write-Host "Page url from result value is $($uscanres)"
 
 		return [PSCustomObject]@{
 			scanuuid = $scanuuid
@@ -434,12 +439,12 @@ function Invoke-VT {
 
 	$lastanalysistimeepoch = $null
 
-    $tz = [System.TimeZoneInfo]::Local
-	$tzid = $tz.Id
-	$tzoffset = $tz.BaseUtcOffset
-	$tzh = $tzoffset.Hours
-	$tzm = $tzoffset.Minutes
-	
+        $tz = [System.TimeZoneInfo]::Local
+        $tzid = $tz.Id
+        $tzoffset = $tz.BaseUtcOffset
+        $tzh = $tzoffset.Hours
+        $tzm = $tzoffset.Minutes
+
 	# Convert Epoch time from API to human readable
 	function Get-TimeAgo($epoch) {
 		$dt = [System.DateTimeOffset]::FromUnixTimeSeconds($epoch). ToLocalTime(). DateTime
@@ -515,7 +520,7 @@ function Invoke-VT {
 		if ($scanReady) {
 			return $scanResult
 		} else {
-			Write-Host "VirusTotal report is not available after $maxTries attempts." -ForegroundColor Red
+			Write-Host "VirusTotal report is not available even after $maxTries attempts." -ForegroundColor Red
 			return $null
 		}
 	}
@@ -587,7 +592,7 @@ function Invoke-VT {
 	}
 
 	$size = $null
-        $tags = $null
+	$tags = $null
 	$uncompsize = $null
 	$timeago = $null
 	$filesnum = $null
@@ -602,10 +607,10 @@ function Invoke-VT {
 		# Basic exiftool fields
 		$proname = $response.data.attributes.exiftool.ProductName
 		$names = $response.data.attributes.names
-                $tagresult = $response.data.attributes.tags
-                if ($tagresult -and $tagresult.Count -gt 0) { 
-                    $tags = $tagresult 
-                }
+		$tagresult = $response.data.attributes.tags
+		if ($tagresult -and $tagresult.Count -gt 0) { 
+			$tags = $tagresult 
+		}
 		$intname = $response.data.attributes.exiftool.InternalName
 		$fildesc = $response.data.attributes.exiftool.FileDescription
 		$filtype = $response.data.attributes.type_extension
@@ -655,8 +660,17 @@ function Invoke-VT {
 		$registrar = $response.data.attributes.registrar
 
 		# Registration, Update, and Expiration details using RDAP fields
-		$regdateiso = ($response.data.attributes.rdap.events | Where-Object { $_.event_action -eq "registration" }).event_date
-		$updateiso = ($response.data.attributes.rdap.events | Where-Object { $_.event_action -eq "last changed" }).event_date
+		$rdap = $response.data.attributes.rdap
+		$regdateiso = ($rdap.events | Where-Object { $_.event_action -eq "registration" }).event_date
+		$updateiso = ($rdap.events | Where-Object { $_.event_action -eq "last changed" }).event_date
+                $rdapname = $rdap.name
+                if ($response.data.attributes.country) {
+                    $rdapcn = $response.data.attributes.country
+                } elseif ($rdap.country) {
+                    $rdapcn = $rdap.country
+                }
+                $asn = $response.data.attributes.asn
+                $asowner = $response.data.attributes.as_owner
 
 		# Converting to readable and epoch dates. Cnvert the readable dates to strings so that they won't get changed into epoch when converted into json.
 		if ($regdateiso) {
@@ -695,6 +709,10 @@ function Invoke-VT {
 			malscore = $malscore
 			vtscore = $vtscore
 			proname = $proname
+			rdapname = $rdapname
+			rdapcn = $rdapcn
+			asn = $asn
+			asowner = $asowner
 			names = $names
 			tags = $tags
 			intname = $intname
@@ -726,6 +744,10 @@ function Invoke-VT {
 			malscore = $null
 			vtscore = $null
 			proname = $null
+			rdapname = $null
+			rdapcn = $null
+			asn = $null
+			asowner = $null
 			names = $null
 			tags = $null
 			intname = $null
@@ -756,12 +778,78 @@ function Invoke-VT {
 # =========================
 
 # =========================
+# Inline IPQuery function starts here
+# =========================
+function Invoke-IPQuery {
+	param(
+		[string]$ip
+	)
+
+	try {
+		$ipqapi = Invoke-RestMethod -Method Get -Uri "https://api.ipquery.io/$($ip)?format=json"
+
+		# Getting just the section of data that is relevant... Only need $sendtoapi.api, but the UUID is nice to have as well
+		$asnipq = $ipqapi.isp.asn
+		$orgipq = $ipqapi.isp.org
+		$ispipq = $ipqapi.isp.isp
+		$couipq = $ipqapi.location.country
+		$stateipq = $ipqapi.location.state
+		$cityipq = $ipqapi.location.city
+		$riskipq = $ipqapi.risk
+		$ismobile = $riskipq.is_mobile
+		$isvpn = $riskipq.is_vpn
+		$istor = $riskipq.is_tor
+		$isproxy = $riskipq.is_proxy
+		$isdatacenter = $riskipq.is_datacenter
+
+		return [PSCustomObject]@{
+			asnipq = $asnipq
+			orgipq = $orgipq
+			ispipq = $ispipq
+			couipq = $couipq
+			stateipq = $stateipq
+			cityipq = $cityipq
+			riskipq = $riskipq
+			ismobile = $ismobile
+			isvpn = $isvpn
+			istor = $istor
+			isproxy = $isproxy
+			isdatacenter = $isdatacenter
+		}
+	} catch {
+		# Directly use exception message and details, no Write-Host
+		$message = $_.Exception.Message
+		$description = $_.Exception.ToString()
+		return [PSCustomObject]@{
+			asnipq = $null
+			orgipq = $null
+			ispipq = $null
+			couipq = $null
+			stateipq = $null
+			cityipq = $null
+			riskipq = $null
+			ismobile = $null
+			isvpn = $null
+			istor = $null
+			isproxy = $null
+			isdatacenter = $null
+			error = $message
+			errordesc = $description
+			statusmessage = $statmsg
+		}
+	}
+}
+# =========================
+# Inline IPQuery function ends here
+# =========================
+
+# =========================
 # Now the main script logic (based on your ois.ps1) but calling the above functions
 # =========================
 # <----Define OSINT URLs---->
 $osintUrls = @{
     # <----All round---->
-    "dgsl" = "https://dgsl.threatconnect.com/#/browse?filters=summary%20contains%20%2"
+    #"dgsl" = "https://dgsl.threatconnect.com/#/browse?filters=summary%20contains%20%2"
     "vt" = "https://www.virustotal.com/gui/search"
     "valkyrie" = "https://verdict.valkyrie.comodo.com" #testing
 
@@ -772,7 +860,7 @@ $osintUrls = @{
     "talos" = "https://talosintelligence.com/reputation_center/lookup?search"
 
     # <----Domain, URL, Hash---->
-    "tg" = "https://panacea.threatgrid.com/mask/search/samples?after&before&region=US&selectedScope=all&term=freeform&visibility=all&query"
+    #"tg" = "https://panacea.threatgrid.com/mask/search/samples?after&before&region=US&selectedScope=all&term=freeform&visibility=all&query"
 
     # <----Domain, URL---->
     "norton" = "https://sitereview.bluecoat.com/#/lookup-result"
@@ -811,8 +899,8 @@ function Get-UseUrlscanPreference {
     if ([string]::IsNullOrWhiteSpace($config.useurlscan) -and $configPath) {
         do {
             Write-Host "This script allows you to use URLScan API to get better URL search results."
-            Write-Host "If you don't have an account, create one at https://urlscan.io/user/signup"
-            Write-Host "If you already have an account, get the API key here https://urlscan.io/user/profile/"
+            Write-ColoredLine "If you don't have an account, create one at " "https://urlscan.io/user/signup" "" Cyan
+            Write-ColoredLine "If you already have an account, get the API key here " "https://urlscan.io/user/profile/" "" Cyan
             Write-Host "If you want to change the choice later, go to the edit menu"
             $yorn = Read-Host "`nDo you want to use URLScan API? Select Y only if you have an API key (Y/N)"
 			Write-Host ""
@@ -843,7 +931,7 @@ function Get-UseVTApiPreference {
     if ([string]::IsNullOrWhiteSpace($config.usevtapi) -and $configPath) {
         do {
             Write-Host "`nThis script allows you to use Virus Total API to submit and pull results."
-            Write-Host "If you don't have an account, create one at https://www.virustotal.com/gui/join-us"
+            Write-ColoredLine "If you don't have an account, create one at " "https://www.virustotal.com/gui/join-us" "" Cyan
             Write-Host "If you already have an account, get the API key from the profile icon on the top right corner"
             Write-Host "If you want to change the choice later, go to the edit menu"
             $yornvt = Read-Host "`nDo you want to use Virus Total API? Select Y only if you have an API key (Y/N)"
@@ -879,7 +967,7 @@ function Get-UseBrowser {
         } while ($yornusebrow -notmatch '^[YyNn]$')
         $config.usebrow = $yornusebrow.ToUpper()
         Save-Config -cfg $config -path $configPath
-		Write-Host "`nSaved preferences to config file"
+		Write-Host "`nSaved preferences to config file" -ForegroundColor Green
 		Start-Sleep -Seconds 2
 		Clear-Host
     }
@@ -897,69 +985,114 @@ Function Lookup-Handler {
 
     foreach ($ioc in $iocs) {
         Write-ColoredLine "" "`nIOC ($type): " "$ioc" Blue
-        if ($usevtapi -eq "Y") {
-            $result = $null
-            switch ($type) {
-                "ip"    { $result = Invoke-VT -vtip $ioc -configPath $configPath 2>$null }
-                "hash"  { $result = Invoke-VT -vtfilehash $ioc -configPath $configPath 2>$null }
-                "domain"{ $result = Invoke-VT -vtdomain $ioc -configPath $configPath 2>$null }
-                "url"   { $result = Invoke-VT -vturl $ioc -configPath $configPath 2>$null }
-                default     { Write-Host "Unknown type: $type"; return }
-            }
-            if ($result) {
+        <# Getting IP info from ipquery #>
+        if ($type -eq "ip") {
+            $resultipq = Invoke-IPQuery -ip $ioc
+            #$resultipq
+        }
+		
+        <# Getting VT details for all IOC types if VT API is being used #>
+        if ($usevtapi -eq "Y" -or $resultipq.asnipq) {
+            $resultvt = $null
+            if ($usevtapi -eq "Y") {
+				switch ($type) {
+					"ip"    { $resultvt = Invoke-VT -vtip $ioc -configPath $configPath 2>$null }
+					"hash"  { $resultvt = Invoke-VT -vtfilehash $ioc -configPath $configPath 2>$null }
+					"domain"{ $resultvt = Invoke-VT -vtdomain $ioc -configPath $configPath 2>$null }
+					"url"   { $resultvt = Invoke-VT -vturl $ioc -configPath $configPath 2>$null }
+					default     { Write-Host "Unknown type: $type"; return }
+				}
+			}
+			
+            if ($resultvt -or $resultipq) {
                 try {
-		    if ($type -eq "hash" -and $result.timeago -eq "55 years ago") {
-		        Write-Host "This hash has no results in Virus Total!" -ForegroundColor Red
-		    }
+					if ($type -eq "hash" -and $resultvt.timeago -eq "55 years ago") {
+						Write-Host "This hash has no results in Virus Total!" -ForegroundColor Red
+					}
+
                     # Verdict will be malicious if malscore is greater than 0
-                    if ($result.malscore -gt 0 -and $result.total) {
-                        Write-ColoredLine "Virus Total verdict is " "malicious ($($result.vtscore))" "" Red
-                    } elseif ($result.malscore -eq 0 -and $result.total) {
-                        Write-ColoredLine "Virus Total verdict is " "clean ($($result.vtscore))" "" Green
-                    } elseif ($type -ne "hash" -and -not $result.total) {
+                    if ($resultvt.malscore -gt 0 -and $resultvt.total) {
+                        Write-ColoredLine "Virus Total verdict is " "malicious ($($resultvt.vtscore))" "" Red
+                    } elseif ($resultvt.malscore -eq 0 -and $resultvt.total) {
+                        Write-ColoredLine "Virus Total verdict is " "clean ($($resultvt.vtscore))" "" Green
+                    } elseif ($type -ne "hash" -and -not $resultvt.total -and $usevtapi -eq "Y") {
                         Write-Host "Could not get verdict. Waiting time is too long..." -ForegroundColor Yellow
                     }
-                    if ($result.timeago -and $result.timeago -ne "55 years ago")  { Write-Host "Last Analysis: $($result.timeago) at $($result.lasttimeout)" -ForegroundColor DarkYellow }
+
+                    if ($resultvt.timeago -and $resultvt.timeago -ne "55 years ago")  { Write-Host "Last Analysis: $($resultvt.timeago) on $($resultvt.lasttimeout)" -ForegroundColor DarkYellow }
                     # Result tags if any
-                    if ($result.tags -and $result.tags.Count -gt 0) {
-			Write-Host ("Tags: " + ($result.tags[0..([Math]::Min(9, $result.tags.Count - 1))] -join ', ')) -ForegroundColor Cyan
-		    }
+                    if ($resultvt.tags -and $resultvt.tags.Count -gt 0) {
+					Write-Host ("Tags: " + ($resultvt.tags[0..([Math]::Min(9, $resultvt.tags.Count - 1))] -join ', ')) -ForegroundColor Cyan
+					}
+
                     # These values will only be seen for file hashes
-                    if ($result.names -and $result.names.Count -gt 0) {
-			Write-Host ("Names found for this hash: " + ($result.names[0..([Math]::Min(6, $result.names.Count - 1))] -join ', ')) -ForegroundColor DarkCyan
-		    }
-                    if ($result.proname)  { Write-ColoredLine "" "Product Name: " "$($result.proname)" Yellow }
-                    if ($result.intname)  { Write-ColoredLine "" "Internal Name: " "$($result.intname)" Yellow }
-                    if ($result.fildesc)  { Write-ColoredLine "" "File Description: " "$($result.fildesc)" Yellow } 
+                    if ($resultvt.names -and $resultvt.names.Count -gt 0) {
+					Write-Host ("Names found for this hash: " + ($resultvt.names[0..([Math]::Min(6, $resultvt.names.Count - 1))] -join ', ')) -ForegroundColor DarkCyan
+					}
+
+                    if ($resultvt.proname)  { Write-ColoredLine "" "Product Name: " "$($resultvt.proname)" Yellow }
+                    if ($resultvt.intname)  { Write-ColoredLine "" "Internal Name: " "$($resultvt.intname)" Yellow }
+                    if ($resultvt.fildesc)  { Write-ColoredLine "" "File Description: " "$($resultvt.fildesc)" Yellow } 
+
                     # Checking if the file is signed
-                    if ($result.filtype -and $result.sigver) {
-                        Write-ColoredLine "File signed by: " "$($result.signer)" "" Green
-                    } elseif ($result.filtype -and $result.sigver -eq $null) {
+                    if ($resultvt.filtype -and $resultvt.sigver) {
+                        Write-ColoredLine "File signed by: " "$($resultvt.signer)" "" Green
+                    } elseif ($resultvt.filtype -and $resultvt.sigver -eq $null) {
                         Write-ColoredLine "File signed by: " "Not Signed!" "" Red
                     }
-                    if ($result.filtype) { Write-ColoredLine "" "File Type: " "$($result.filtype)" Yellow }
-                    if ($result.respcode) {
-                        if ($result.respcode -ge 200 -and $result.respcode -lt 300) {
-                            Write-ColoredLine "HTTP Response Code: " "$($result.respcode)" "" Green # Success (2xx)
-                        } elseif ($result.respcode -ge 300 -and $result.respcode -lt 400)  {
-                            Write-ColoredLine "HTTP Response Code: " "$($result.respcode)" "" Yellow # Redirect (3xx)
-                        } elseif ($result.respcode -ge 400 -and $result.respcode -lt 600)  {
-                            Write-ColoredLine "HTTP Response Code: " "$($result.respcode)" "" Red # Client Error (4xx) or Server Error (5xx)
+
+                    if ($resultvt.filtype) { Write-ColoredLine "" "File Type: " "$($resultvt.filtype)" Yellow }
+
+                    if ($resultvt.respcode) {
+                        if ($resultvt.respcode -ge 200 -and $resultvt.respcode -lt 300) {
+                            Write-ColoredLine "HTTP Response Code: " "$($resultvt.respcode)" "" Green # Success (2xx)
+                        } elseif ($resultvt.respcode -ge 300 -and $resultvt.respcode -lt 400)  {
+                            Write-ColoredLine "HTTP Response Code: " "$($resultvt.respcode)" "" Yellow # Redirect (3xx)
+                        } elseif ($resultvt.respcode -ge 400 -and $resultvt.respcode -lt 600)  {
+                            Write-ColoredLine "HTTP Response Code: " "$($resultvt.respcode)" "" Red # Client Error (4xx) or Server Error (5xx)
                         } else {
-                            Write-ColoredLine "" "HTTP Response Code: " "$($result.respcode)" Yellow
+                            Write-ColoredLine "" "HTTP Response Code: " "$($resultvt.respcode)" Yellow
                         }
                     }
-                    if ($result.registrar)  { Write-ColoredLine "" "Registrar: " "$($result.registrar)" Yellow }
-                    if ($result.regdateout)  { Write-ColoredLine "" "Registered on: " "$($result.regtimeago) on $($result.regdateout)" Yellow }
-                    if ($result.updateout)  { Write-ColoredLine "" "Updated on: " "$($result.uptimeago) on $($result.updateout)" Yellow }
-                    if ($result.expdateout)  { Write-ColoredLine "" "Expiring on: " "$($result.expdateout)" Red }
-                    if ($result.size -and $result.timeago -ne "55 years ago")  { Write-ColoredLine "" "File Size: " "$($result.size)" Yellow }
-                    if ($result.uncompsize)  { Write-Host "There are $($result.filesnum) files. Uncompressed size is $($result.uncompsize)" }
-                    if ($result.hasexe -and $result.hasexe -gt 0)  { Write-ColoredLine "" "Warning! " "Contains $($result.hasexe) executables!" Red }
+					
+                    if ($resultipq.asnipq) { Write-ColoredLine "" "ASN: " "$($resultipq.asnipq)" DarkCyan }
+					
+					if ($resultipq.orgipq -or $resultipq.ispipq) {
+						if ($resultipq.orgipq -eq $resultipq.ispipq) { 
+							Write-ColoredLine "" "AS Org/ISP: " "$($resultipq.orgipq)" DarkCyan 
+						} elseif ($resultipq.orgipq) {
+							Write-ColoredLine "" "AS Org: " "$($resultipq.orgipq)" DarkCyan
+						} elseif ($resultipq.ispipq) {
+							Write-ColoredLine "" "AS ISP: " "$($resultipq.ispipq)" DarkCyan
+						}
+					}
+					
+                    if (-not $resultipq.asnipq -and $resultvt.asn)  { Write-ColoredLine "" "AS details: " "AS $($resultvt.asn) ($($resultvt.asowner))" DarkCyan }
+                    if ($resultvt.registrar)  { Write-ColoredLine "" "Registrar: " "$($resultvt.registrar)" Yellow }
+                    if ($resultvt.rdapname)  { Write-ColoredLine "" "Name: " "$($resultvt.rdapname)" Yellow }
+					
+                    if ($resultipq.cityipq -and $resultipq.stateipq -ne $resultipq.cityipq) { Write-ColoredLine "" "City: " "$($resultipq.cityipq)" DarkBlue }
+					if ($resultipq.stateipq) { Write-ColoredLine "" "State: " "$($resultipq.stateipq)" DarkBlue }
+					if ($resultipq.couipq) { Write-ColoredLine "" "Country: " "$($resultipq.couipq)" DarkBlue }
+					
+                    if (-not $resultipq.couipq -and $resultvt.rdapcn)  { Write-ColoredLine "" "Country: " "$($resultvt.rdapcn)" Yellow }
+					
+					if ($resultipq.ismobile) { Write-ColoredLine "" "Is Mobile: " "$($resultipq.ismobile)" DarkRed }
+					if ($resultipq.isvpn) { Write-ColoredLine "" "Is VPN: " "$($resultipq.isvpn)" DarkRed }
+					if ($resultipq.istor) { Write-ColoredLine "" "Is Tor: " "$($resultipq.istor)" DarkRed }
+					if ($resultipq.isproxy) { Write-ColoredLine "" "Is Proxy: " "$($resultipq.isproxy)" DarkRed }
+					if ($resultipq.isdatacenter) { Write-ColoredLine "" "Is Datacenter: " "$($resultipq.isdatacenter)" DarkRed }
+					
+                    if ($resultvt.regdateout)  { Write-ColoredLine "" "Registered on: " "$($resultvt.regtimeago) on $($resultvt.regdateout)" Yellow }
+                    if ($resultvt.updateout)  { Write-ColoredLine "" "Updated on: " "$($resultvt.uptimeago) on $($resultvt.updateout)" Yellow }
+                    if ($resultvt.expdateout)  { Write-ColoredLine "" "Expiring on: " "$($resultvt.expdateout)" Red }
+                    if ($resultvt.size -and $resultvt.timeago -ne "55 years ago")  { Write-ColoredLine "" "File Size: " "$($resultvt.size)" Yellow }
+                    if ($resultvt.uncompsize)  { Write-Host "There are $($resultvt.filesnum) files. Uncompressed size is $($resultvt.uncompsize)" }
+                    if ($resultvt.hasexe -and $resultvt.hasexe -gt 0)  { Write-ColoredLine "" "Warning! " "Contains $($resultvt.hasexe) executables!" Red }
                 }
                 catch {
-		    Write-Host "Error parsing VT result. Maybe this IOC was never submitted." -ForegroundColor Red
-		    Write-Host "Open the link from references or try again after sometime to get api results." -ForegroundColor DarkRed
+					Write-Host "Error parsing VT result. Maybe this IOC was never submitted." -ForegroundColor Red
+					Write-Host "Open the link from references or try again after sometime to get api results." -ForegroundColor DarkRed
                 }
             } else {
                 Write-Host "No VT result for $ioc"
@@ -983,6 +1116,8 @@ Function Lookup-Handler {
                 "$($osintUrls.talos)=$ioc",
                 "$($osintUrls.ibm)/url/$ioc",
                 "$($osintUrls.abip)/$ioc"
+                #"$($osintUrls.dgsl)2$ioc%22",
+                #"$($osintUrls.tg)=$ioc"
             )
         } elseif ($type -eq "ip") {
             # --------------------IP Lookup--------------------
@@ -994,6 +1129,8 @@ Function Lookup-Handler {
                 "$($osintUrls.ibm)/url/$ioc",
                 "$($osintUrls.abip)/$ioc",
                 "$($osintUrls.shodan)=$ioc"
+                #"$($osintUrls.dgsl)2$ioc%22",
+                #"$($osintUrls.tg)=$ioc"
             )
         } elseif ($type -eq "url") {
             # -------------------URL Lookup--------------------
@@ -1039,6 +1176,8 @@ Function Lookup-Handler {
                 "$($osintUrls.abip)/$domain",
                 "$($osintUrls.whois)/$domain",
                 "$($osintUrls.ibm)/url/$domain"
+                #"$($osintUrls.dgsl)2$($encodedOriginal.Single)%22",
+                #"$($osintUrls.tg)=$domain"
             )
 
             if ($useurlscan -eq "Y") {
@@ -1052,13 +1191,14 @@ Function Lookup-Handler {
                 "$($osintUrls.otx)=$ioc",
                 "$($osintUrls.kasper)/$ioc/results?tab=lookup",
                 "$($osintUrls.ibm)/malware/$ioc"
+                #"$($osintUrls.dgsl)2$ioc%22",
+                #"$($osintUrls.tg)=$ioc"
             )
         }
 
         # Open result URLs in the browser and display them in the terminal
         if ($urls) {
             if ($usebrow -eq "Y") {Start-Process $browser -ArgumentList ("-new-window", ($urls -join " "))}
-            #Write-Host "Reference links for IOC ($type): $ioc"
             Write-ColoredLine "<------------------------" "Reference links" "-------------------------->" Cyan
             $urls | ForEach-Object { Write-Host $_ }
             Write-Host "<----------------------------------------------------------------->"
@@ -1066,7 +1206,6 @@ Function Lookup-Handler {
 
         # Print URLscan results and collect for later polling
         if ($type -eq "url" -and $useurlscan -eq "Y" -and $usstatmsg -eq "Submission successful") {
-            #Write-Host "URLscan results for: $ioc" -ForegroundColor Green
             Write-ColoredLine "<--------------------------" "URLscan results" "------------------------>" Green
             $uscanurls | ForEach-Object { Write-Host $_ }
             Write-Host "<----------------------------------------------------------------->"
@@ -1244,11 +1383,10 @@ Do {
 
     # Quit the script if "q" is pressed
     if ($iocInput -match '^(?i)q$') {
-        Clear-Host
         Show-Logo
-        Write-Host "`n`nFly, you fools!" -ForegroundColor DarkYellow
+        Write-Host "`nFly, you fools!" -ForegroundColor DarkYellow
         Write-Host ""
-	Start-Sleep -Seconds 4
+	Start-Sleep -Seconds 2
         break
     }
 
