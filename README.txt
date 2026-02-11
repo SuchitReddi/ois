@@ -28,6 +28,26 @@ OSINT IOC Scanner (OIS) By Suchit
 
 Welcome, Sherlock! The game is on!
 
+Installation:
+- Just place the executable anywhere you want and double click to run.
+- The first time you run the exe, a configuration file will be created. Keep it in the same location as the exe.
+
+NOTE:
+- If the exe crashes, place the bundled "crash error catcher.bat" in the same location and run it to get the crash error.
+
+Usage:
+- You can edit the configuration by giving input "e".
+- To get the maximum output from the tool, API keys are required. 
+--> URLScan API
+You need to provide URLScan API key to get better URL search results.
+If you don't have an account, create one at "https://urlscan.io/user/signup"
+If you already have an account, get the API key here "https://urlscan.io/user/profile/"
+Click on the New API key button to create an API key.
+--> Virus Total API
+You need to provide Virus Total API key to submit and pull results.
+If you don't have an account, create one at "https://www.virustotal.com/gui/join-us"
+If you already have an account, get the API key from the profile icon on the top right corner in Virus Total.
+
 Overview:
 1) Analysts can give their IOCs (Domain, IP, URL, Hash). The IOC type will be auto-validated by the script. Defanged IOCs are also processed.
 2) Maximum of 4 IOCs are recommended to limit excessive resource consumption if you opt for opening results in browser. If more than four are given, a confirmation to proceed will be displayed.
