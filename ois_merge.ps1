@@ -111,16 +111,19 @@ function Save-Config {
 Function Edit-Configuration {
     Param (
         [ref]$browser,
-        [ref]$iocLimit
+        [ref]$iocLimit,
+        [ref]$usebrowser,
+        [ref]$useurlscan,
+        [ref]$usevtapi
     )
 
     Do {
         Clear-Host
         Write-ColoredLine "1) Press 1 to change " "IOC limit" ". Current limit: $($iocLimit.Value)" Blue
-        Write-ColoredLine "2) Press 2 to choose to " "open/not open results in browser." "" Blue
+        Write-ColoredLine "2) Press 2 to choose to " "open/not open results in browser" ". Current choice: $($usebrowser.Value)" Blue
         Write-ColoredLine "3) Press 3 to " "change browser" ". Current browser: $($browser.Value)" Blue
-        Write-ColoredLine "4) Press 4 to choose to " "use/not use URLScan API" "." Blue
-        Write-ColoredLine "5) Press 5 to choose to " "use/not use Virus Total API" "." Blue
+        Write-ColoredLine "4) Press 4 to choose to " "use/not use URLScan API" ". Current choice: $($useurlscan.Value)" Blue
+        Write-ColoredLine "5) Press 5 to choose to " "use/not use Virus Total API" ". Current choice: $($usevtapi.Value)" Blue
         Write-ColoredLine "`nPress " "b" " to go back." Red
         $choice = Read-Host "`nTime to choose"
         Write-Host ""
@@ -142,19 +145,19 @@ Function Edit-Configuration {
             }
             "2" {
                 # Using browser or not
-                if ($usebrow -eq "N") {
+                if ($usebrowser.Value -eq "N") {
                     Write-Host "You are currently not opening results in browser. You can change the choice below."
                     Write-Host ""
-                } elseif ($usebrow -eq "Y") {
+                } elseif ($usebrowser.Value -eq "Y") {
                     Write-Host "You are currently opening results in browser. You can change the choice below."
                     Write-Host ""
                 }
                 $newusebrowser = Read-Host "Do you want to open the result links directly in the browser? (Y/N)"
                 if ($newusebrowser -match '^[YyNn]$') {
-                    $usebrowser = $newusebrowser
-                    $config.usebrow = $usebrowser
+                    $usebrowser.Value = $newusebrowser.ToUpper()
+                    $config.usebrow = $usebrowser.Value
                     $config | ConvertTo-Json | Set-Content $configPath
-                    Write-ColoredLine "Use browser status changed to " "$newusebrowser" ". Changes will apply as soon as you go out of editing." Green
+                    Write-ColoredLine "Use browser status changed to " "$newusebrowser" ". Changes will apply immediately." Green
                 } else {
                     Write-Host "Invalid input. Please enter Y/N value." -ForegroundColor Red
                 }
@@ -189,10 +192,10 @@ Function Edit-Configuration {
 				Write-Host " pill, Neo?"
                 $newUsage = Read-Host "Take the red pill only if you have an API key (Y/N)"
                 if ($newUsage -match '^[YyNn]$') {
-                    $urlscanusage = $newUsage
+                    $urlscanusage = $newUsage.ToUpper()
                     $config.useurlscan = $urlscanusage
                     $config | ConvertTo-Json | Set-Content $configPath
-                    Write-ColoredLine "URLScan API usage status changed to " "$newUsage" ". Changes will apply as soon as you go out of editing." Yellow
+                    Write-ColoredLine "URLScan API usage status changed to " "$newUsage" ". Changes will apply immediately." Yellow
                 } else {
                     Write-Host "Invalid input. Please enter Y/N." -ForegroundColor Red
                 }
@@ -213,10 +216,10 @@ Function Edit-Configuration {
 				Write-Host " pill, Neo?"
                 $newUsagevt = Read-Host "Take the red pill only if you have an API key (Y/N)"
                 if ($newUsagevt -match '^[YyNn]$') {
-                    $vtapiusage = $newUsagevt
+                    $vtapiusage = $newUsagevt.ToUpper()
                     $config.usevtapi = $vtapiusage
                     $config | ConvertTo-Json | Set-Content $configPath
-                    Write-ColoredLine "Virus Total API usage status changed to " "$newUsagevt" ". Changes will apply as soon as you go out of editing." Yellow
+                    Write-ColoredLine "Virus Total API usage status changed to " "$newUsagevt" ". Changes will apply immediately." Yellow
                 } else {
                     Write-Host "Invalid input. Please enter Y/N value." -ForegroundColor Red
                 }
@@ -254,16 +257,12 @@ Function Classify-IOC {
     )
 
     # Regex patterns for each type
-    #$domainRegex = '^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$'  # Simple domain
     $domainRegex = '^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$' #Stricter with DNS label rules
 
-    #$urlRegex = '^((https?|http?|ftp?):\/\/)?([^\s@\/]+@)?([a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3}|({{{{\[[0-9a-fA-F:]+\]}}}}|[0-9a-fA-F:]+))(:\d+)?(\/.*)?(\?.*)?(#[^\s]*)?$'  # URL with optional protocol and path
     $urlRegex = '^(?:(?:https?|ftps?):\/\/)?(?:[^\s\/@]+@)?(?:(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)|\[(?=[0-9A-Fa-f:.]*:)[0-9A-Fa-f:.]+\])(?::(?:[1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{3}|65[0-4]\d{2}|655[0-2]\d|6553[0-5]))?(?:\/[^\s?#]*)*(?:\?[^\s#]*)?(?:#[^\s]*)?$' # IP tightened and port constrained. Avoids partial matches
 
-    #$ipRegex = '^(\d{1,3}\.){3}\d{1,3}$'  # Simple IPv4 address
-    $ipRegex = '^((?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$' # Restricted octet to 0-255
+    $ipRegex = '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|(([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|([0-9A-Fa-f]{1,4}:){1,7}:|:(:[0-9A-Fa-f]{1,4}){1,7}|([0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}|([0-9A-Fa-f]{1,4}:){1,5}(:[0-9A-Fa-f]{1,4}){1,2}|([0-9A-Fa-f]{1,4}:){1,4}(:[0-9A-Fa-f]{1,4}){1,3}|([0-9A-Fa-f]{1,4}:){1,3}(:[0-9A-Fa-f]{1,4}){1,4}|([0-9A-Fa-f]{1,4}:){1,2}(:[0-9A-Fa-f]{1,4}){1,5}|[0-9A-Fa-f]{1,4}:(:[0-9A-Fa-f]{1,4}){1,6}|:(:[0-9A-Fa-f]{1,4}){1,6}))$' # Should read ipv6 too. Taken from "https://www.ditig.com/validating-ipv4-and-ipv6-addresses-with-regexp". Find test cases at "https://regexr.com/8ei69".
 
-    #$privipRegex = '^(?:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$'  # Simple Private IP address
     $privipRegex = '^(?:(?:127|10)\.((?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){2}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)|172\.(?:1[6-9]|2\d|3[0-1])\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)|192\.168\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))$' # Octet restriction
 
     $hashRegex = '^[a-fA-F0-9]{32,64}$'   # Hash (MD5, SHA-256, etc.)
@@ -340,10 +339,10 @@ function Invoke-Urlscan {
 
 	# Robustly load config (read entire file as string)
 	try {
-		$raw = Get-Content -Path $configPath -Raw -ErrorAction Stop
-		$config = $raw | ConvertFrom-Json -ErrorAction Stop
+	    $raw = Get-Content -Path $configPath -Raw -ErrorAction Stop
+	    $config = $raw | ConvertFrom-Json -ErrorAction Stop
 	} catch {
-		$config = $null
+	    $config = $null
 	}
 
 	if (-not $config) { $config = [PSCustomObject]@{} }
@@ -359,7 +358,7 @@ function Invoke-Urlscan {
 		}
 	}
 
-	# If we still don't have an API key, prompt temporarily (do not save from child script)
+	# If we still don't have an API key, prompt temporarily
 	if (-not $apikey -and $config.useurlscan -eq "Y") {
 		Write-Host "No URLScan API key found or decryption failed!" -ForegroundColor Red
 		$apikey = Read-Host -AsSecureString "Enter your URLScan API Key (temporary)" 
@@ -413,10 +412,6 @@ function Invoke-Urlscan {
 		$oisoutput = $sendtoapi.result
 		$ssurl = "https://urlscan.io/screenshots/$scanuuid.png"
 		$statmsg = $sendtoapi.message #Only giving submission successful if successful, but no result otherwise
-
-                #Start-Sleep -Seconds 20
-                #$uscanres = Invoke-RestMethod -Method Get -Uri "$uscanapi"
-                #Write-Host "Page url from result value is $($uscanres)"
 
                 return [PSCustomObject]@{
                         scanuuid      = $scanuuid
@@ -486,7 +481,7 @@ function Invoke-VT {
 		}
 	}
 
-	# If we still don't have an API key, prompt temporarily (do not save from child script)
+	# If we still don't have an API key, prompt temporarily
 	if (-not $apikey) {
 		Write-Host "No Virus Total API key found or decryption failed!" -ForegroundColor Red
 		$tmp = Read-Host -AsSecureString "Enter your Virus Total API Key (temporary)"
@@ -508,17 +503,17 @@ function Invoke-VT {
 		$span = $now - $dt
 
 		if ($span.TotalDays -gt 365) {
-			return "{0} years ago" -f [math]::Floor($span.TotalDays / 365)
+			return "{0} year(s) ago" -f [math]::Floor($span.TotalDays / 365)
 		} elseif ($span.TotalDays -gt 30) {
-			return "{0} months ago" -f [math]::Floor($span.TotalDays / 30)
+			return "{0} month(s) ago" -f [math]::Floor($span.TotalDays / 30)
 		} elseif ($span.TotalDays -gt 1) {
-			return "{0} days ago" -f [math]::Floor($span.TotalDays)
+			return "{0} day(s) ago" -f [math]::Floor($span.TotalDays)
 		} elseif ($span.TotalHours -gt 1) {
-			return "{0} hours ago" -f [math]::Floor($span.TotalHours)
+			return "{0} hour(s) ago" -f [math]::Floor($span.TotalHours)
 		} elseif ($span.TotalMinutes -gt 1) {
-			return "{0} minutes ago" -f [math]::Floor($span.TotalMinutes)
+			return "{0} minute(s) ago" -f [math]::Floor($span.TotalMinutes)
 		} elseif ($span.TotalSeconds -gt 1) {
-			return "{0} seconds ago" -f [math]::Floor($span.TotalSeconds)
+			return "{0} second(s) ago" -f [math]::Floor($span.TotalSeconds)
 		} else {
 			return "just now"
 		}
@@ -547,7 +542,7 @@ function Invoke-VT {
 		$scanReady = $false
 		$json = $null
                 $yearsSinceEpoch = (Get-Date).Year - 1970
-                $invalidTimeAgo  = "{0} years ago" -f $yearsSinceEpoch
+                $invalidTimeAgo  = "{0} year(s) ago" -f $yearsSinceEpoch
 
 		while (-not $scanReady -and $try -lt $maxTries) {
 			Start-Sleep -Seconds 1
@@ -560,8 +555,6 @@ function Invoke-VT {
 			    $lastanalysistimeepoch = $scanResult.data.attributes.last_analysis_date
 			    $timeago = Get-TimeAgo $lastanalysistimeepoch
 
-			    #Write-Host ("Try " + $try + ": last_analysis_date=" + $lastanalysistimeepoch + " | timeago=" + $timeago)
-
 			    if ($lastanalysistimeepoch -and $lastanalysistimeepoch -ne 0 -and $timeago -ne $invalidTimeAgo) {
 			 	$scanReady = $true
 			    }
@@ -570,7 +563,6 @@ function Invoke-VT {
 			    if ($null -eq $stream) { break }
 			    $body = (New-Object System.IO.StreamReader($stream)). ReadToEnd()
 			    try { $json = $body | ConvertFrom-Json } catch { $json = $null }
-			    # I don't know why, but unlike the url, this works only when I removed the -not in front of the if condition or left it untouched and changed break to continue.
 			    if ($json -and $json.error.code -eq "NotFoundError") { break }
 			}
 		}
@@ -584,7 +576,7 @@ function Invoke-VT {
 	}
 	
 	$headers=@{ "accept"="application/json"; "x-apikey"=$apikey }
-    $response = $null
+        $response = $null
 	if ($vturl) {
 		# <!---------URL---------!>
 		# Headers for the URL rescan API call
@@ -708,6 +700,10 @@ function Invoke-VT {
 
 		# Getting http response code
 		$respcode = $response.data.attributes.last_http_response_code
+		$tagresult = $response.data.attributes.tags
+		if ($tagresult -and $tagresult.Count -gt 0) { 
+			$tags = $tagresult 
+		}
 	} elseif ($vtdomain -or $vtip) {
 		# Getting last analysed time
 		$lastanalysistimeepoch = $response.data.attributes.last_analysis_date
@@ -729,6 +725,11 @@ function Invoke-VT {
                 }
                 $asn = $response.data.attributes.asn
                 $asowner = $response.data.attributes.as_owner
+
+		$tagresult = $response.data.attributes.tags
+		if ($tagresult -and $tagresult.Count -gt 0) { 
+			$tags = $tagresult 
+		}
 
 		# Converting to readable and epoch dates. Cnvert the readable dates to strings so that they won't get changed into epoch when converted into json.
 		if ($regdateiso) {
@@ -752,6 +753,10 @@ function Invoke-VT {
 				$expdate = [datetime]::Parse($expdateiso)
 				$expdateout = $expdate.ToString("dd MMMM yyyy HH:mm:ss") + " " + $tzid + " (UTC " + $tzh + ":" + $tzm + ")"
 			}
+			$tagresult = $response.data.attributes.tags
+			if ($tagresult -and $tagresult.Count -gt 0) { 
+				$tags = $tagresult 
+			}
 		}
 	} else {
 		# Getting last analysed time
@@ -759,6 +764,10 @@ function Invoke-VT {
 		$timeago = Get-TimeAgo $lastanalysistimeepoch
 		$lasttime = (Get-Date -Date "1970-01-01 00:00:00Z"). AddSeconds($lastanalysistimeepoch)
 		$lasttimeout = $lasttime.ToString("dd MMMM yyyy HH:mm:ss") + " " + $tzid + " (UTC " + $tzh + ":" + $tzm + ")"
+		$tagresult = $response.data.attributes.tags
+		if ($tagresult -and $tagresult.Count -gt 0) { 
+			$tags = $tagresult 
+		}
 	}
 
 	try {
@@ -959,7 +968,7 @@ function Get-UseUrlscanPreference {
             Write-ColoredLine "If you don't have an account, create one at " "https://urlscan.io/user/signup" "" Cyan
             Write-ColoredLine "If you already have an account, get the API key here " "https://urlscan.io/user/profile/" "" Cyan
             Write-Host "Click on the New API key button to create an API key."
-            Write-Host "If you want to change the choice later, go to the edit menu"
+            Write-Host "If you want to change the choice later, go to the edit menu. Check ReadMe for more details"
             $yorn = Read-Host "`nDo you want to use URLScan API? Select Y only if you have an API key (Y/N)"
 			Write-Host ""
         } while ($yorn -notmatch '^[YyNn]$')
@@ -990,10 +999,10 @@ function Get-UseVTApiPreference {
         do {
             Write-Host "`nThis script allows you to use Virus Total API to submit and pull results."
             Write-ColoredLine "If you don't have an account, create one at " "https://www.virustotal.com/gui/join-us" "" Cyan
-            Write-Host "If you already have an account, get the API key from the profile icon on the top right corner"
-            Write-Host "If you want to change the choice later, go to the edit menu"
+            Write-ColoredLine "Analysts are usually provided an enterprise premium account, you can get the API key at " "https://www.virustotal.com/gui/my-apikey" "" Cyan
+            Write-Host "If you want to change the choice later, go to the edit menu. Check ReadMe for more details"
             $yornvt = Read-Host "`nDo you want to use Virus Total API? Select Y only if you have an API key (Y/N)"
-			Write-Host ""
+	    Write-Host ""
         } while ($yornvt -notmatch '^[YyNn]$')
         $config.usevtapi = $yornvt.ToUpper()
         Save-Config -cfg $config -path $configPath
@@ -1074,7 +1083,7 @@ Function Lookup-Handler {
                     "hash"  { $resultvt = Invoke-VT -vtfilehash $ioc -configPath $configPath 2>$null }
                     "domain"{ $resultvt = Invoke-VT -vtdomain $ioc -configPath $configPath 2>$null }
                     "url"   { $resultvt = Invoke-VT -vturl $ioc -configPath $configPath 2>$null }
-                    "private_ip" { Write-Host "Not sending to Virus Total as this is a Private IP" }
+                    "private_ip" { Write-Host "Not sending to Virus Total as this is a Private IP. YOU CANNOT PASS!!!" }
                     default { Write-Host "Virus Total says Unknown type: $type"; return }
                 }
         }
@@ -1082,7 +1091,7 @@ Function Lookup-Handler {
             if ($resultvt -or $resultipq -or $usresult) {
                 try {
                     $yearsSinceEpoch = (Get-Date).Year - 1970
-                    $invalidTimeAgo  = "{0} years ago" -f $yearsSinceEpoch
+                    $invalidTimeAgo  = "{0} year(s) ago" -f $yearsSinceEpoch
 
                     if ($type -eq "hash" -and $resultvt.timeago -eq $invalidTimeAgo) {
                         Write-Host "This hash has no results in Virus Total!" -ForegroundColor Red
@@ -1208,7 +1217,9 @@ Function Lookup-Handler {
                 "$($osintUrls.whois)/$ioc",
                 "$($osintUrls.talos)=$ioc",
                 "$($osintUrls.ibm)/url/$ioc",
-                "$($osintUrls.abip)/$ioc"
+                "$($osintUrls.abip)/$ioc",
+                "$($osintUrls.dgsl)2$ioc%22",
+                "$($osintUrls.tg)=$ioc"
             )
         } elseif ($type -eq "ip") {
             # --------------------IP Lookup--------------------
@@ -1220,7 +1231,9 @@ Function Lookup-Handler {
                 "$($osintUrls.talos)=$ioc",
                 "$($osintUrls.ibm)/url/$ioc",
                 "$($osintUrls.abip)/$ioc",
-                "$($osintUrls.shodan)=$ioc"
+                "$($osintUrls.shodan)=$ioc",
+                "$($osintUrls.dgsl)2$ioc%22",
+                "$($osintUrls.tg)=$ioc"
             )
         } elseif ($type -eq "url") {
             # -------------------URL Lookup--------------------
@@ -1257,7 +1270,9 @@ Function Lookup-Handler {
                 "$($osintUrls.talos)=$($encodedOriginal.Single)",
                 "$($osintUrls.abip)/$domain",
                 "$($osintUrls.whois)/$domain",
-                "$($osintUrls.ibm)/url/$domain"
+                "$($osintUrls.ibm)/url/$domain",
+                "$($osintUrls.dgsl)2$($encodedOriginal.Single)%22",
+                "$($osintUrls.tg)=$domain"
             )
 
             if ($useurlscan -eq "Y") {
@@ -1270,7 +1285,9 @@ Function Lookup-Handler {
                 "$($osintUrls.vt)/$ioc",
                 "$($osintUrls.otx)=$ioc",
                 "$($osintUrls.kasper)/$ioc/results?tab=lookup",
-                "$($osintUrls.ibm)/malware/$ioc"
+                "$($osintUrls.ibm)/malware/$ioc",
+                "$($osintUrls.dgsl)2$ioc%22",
+                "$($osintUrls.tg)=$ioc"
             )
         }
 
@@ -1336,7 +1353,7 @@ Function Lookup-Handler {
 
 Show-Logo
 
-Write-Host "`n'i' to know more about the tool 
+Write-Host "`n'r' for readme
 'e' to edit configuration" -ForegroundColor DarkGreen
 
 Write-Host "'c' to clear the console
@@ -1439,7 +1456,7 @@ Do {
     $iocInput = Read-Host "`nEnter IOCs"
     # Check if the user input is "e" (case-insensitive)
 	if ($iocInput -match '^(?i)e$') {
-		Edit-Configuration -browser ([ref]$browser) -iocLimit ([ref]$iocLimit)
+		Edit-Configuration -browser ([ref]$browser) -iocLimit ([ref]$iocLimit) -usebrowser ([ref]$usebrowser) -useurlscan ([ref]$useurlscan) -usevtapi ([ref]$usevtapi)
 
 		# ---------------- Reload config immediately after editing ----------------
 		$config = Load-Config -path $configPath
@@ -1476,24 +1493,65 @@ Do {
         break
     }
 
-    # Check if the user input is "i" to show information
-    if ($iocInput -match '^(?i)i$') {
+    # Display ReadMe if "r" is pressed
+    if ($iocInput -match '^(?i)r$') {
+
         Show-Logo
 
         Write-Host ""
 
-        Write-Host "Overview: " -ForegroundColor Green
-        Show-Animated-Text -text "1) Analysts can submit multiple IOCs (Domain, IP, URL, Hash) at once. IOC type will be auto-validated. Defanged IOCs can also be given."
-        Show-Animated-Text -text "2) Maximum of 4 IOCs are recommended to limit excessive resource consumption if you opt for opening results in browser."
-        Show-Animated-Text -text "3) The delimiters that can be used between two IOCs are: Space ( ), OR operator ( OR )( or ), and Comma (,)."
-        Show-Animated-Text -text "4) The links for results will be displayed in terminal for analysts to copy paste as references."
-        Show-Animated-Text -text "5) The executable can be run from anywhere, the config file created needs to be in the same directory."
-        Show-Animated-Text -text "6) If you submit Virus Total API Key, you can get many details directly in console. IOCs will be submitted to VT for reanalyzing when the script is run."
-        Show-Animated-Text -text "7) If you have URLScan account, you can use the API to get a live screenshot for the URL. You will be prompted to choose if you want to use it or not in the beginning. You can change it from the edit menu by entering e as input."
+        Write-Host "README: " -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "Installation: " -ForegroundColor Green
+        Show-Animated-Text -text "- Just place the executable anywhere you want and double click to run. You can add it to taskbar for better access."
+        Show-Animated-Text -text "- The first time you run the exe, a configuration file will be created. Keep it in the same location as the exe."
+        Show-Animated-Text -text "- You will be prompted different choices, which can be edited later by giving input 'e'"
+        Show-Animated-Text -text "- Choose to use Virus Total and URLScan API and follow the instructions to obtain the API keys and submit them."
+        Show-Animated-Text -text "This will provide a lot more information for each IOC."
+
+        Write-Host ""
+        Write-Host "TROUBLESHOOTING: " -ForegroundColor Red
+        Show-Animated-Text -text "If a terminal window opens and closes immediately, run the included batch file. It will show you the error causing the crash, giving you a chance to debug."
+
+        Write-Host ""
+        Write-Host "Usage: " -ForegroundColor Yellow
+        Show-Animated-Text -text "You can edit the configuration by giving input 'e'. The options available for editing:"
+        Show-Animated-Text -text "1) You can change the IOC limit."
+        Show-Animated-Text -text "2) You can decide if you want to open the result links in browser or not. If yes, the results for each IOC will open in a separate browser window."
+        Show-Animated-Text -text "But the urlscan results will be opened in the last window for all IOCs. (If you opted to open the results in browser and the limit is too great, system could lag.)"
+        Show-Animated-Text -text "3) You can change the default browser the result links are opened in."
+        Show-Animated-Text -text "4) You can choose if you want to use APIs (Virus Total and URLScan for now)."
+        Show-Animated-Text -text "5) Analysts can submit multiple IOCs (Domain, IP, URL, Hash) at once. IOC type will be auto validated. Defanged IOCs can also be given."
+        Show-Animated-Text -text "6) The delimiters that can be used between two IOCs are: Space ( ), OR operator ( OR )( or ), and Comma (,)."
+        Show-Animated-Text -text "7) The executable can be run from anywhere, the config file created needs to be in the same directory."
+
+        Write-Host ""
+        Write-Host "Additional Information: " -ForegroundColor Yellow
+        Show-Animated-Text -text "- You can click on any link in terminal while holding 'Ctrl' to open it in browser."
+        Show-Animated-Text -text "- Every time you submit a valid IOC to the script, it will be sent to Virus Total to get an updated analysis, given you provided the API key. IOCs never seen on VT before will be submitted too."
+        Show-Animated-Text -text "- If Virus Total API Key is provided, you can get many details directly in console."
+        Show-Animated-Text -text "- If URLScan API key is provided, you can get a live screenshot for the URL."
+        Show-Animated-Text -text "- If the last analysis date is too old, you can submit the IOC after some time and you can see the updated results from your recent submission. (Hashes usually take longer than other IOCs.)"
+        Show-Animated-Text -text "- When submitting an IOC to URLScan, the script sets visibility as 'Private'."
+        Show-Animated-Text -text "- API Keys you submit are encrypted using Windows DPAPI and not stored in plain text in the config file. This security feature probably won’t work on non-windows devices."
+
+        Write-Host ""
+        Show-Animated-Text -text "--> URLScan API"
+        Show-Animated-Text -text "You need to provide URLScan API key to get better URL search results."
+        Show-Animated-Text -text "If you don't have an account, create one at (https://urlscan.io/user/signup)"
+        Show-Animated-Text -text "If you already have an account, get the API key here (https://urlscan.io/user/profile/)"
+        Show-Animated-Text -text "Click on the 'New API key' button to create an API key. Copy the key by hovering over it."
+        Show-Animated-Text -text "Change the settings to 'Default Scan Visibility' as 'Private' and then 'Enforce'."
+        Show-Animated-Text -text "The script takes care of it by submitting all API requests with Private visibility, but it’s better to be safe than sorry."
+
+        Write-Host ""
+        Show-Animated-Text -text "--> Virus Total API"
+        Show-Animated-Text -text "You need to provide Virus Total API key to submit and pull results."
+        Show-Animated-Text -text "If you don't have an account, create one at (https://www.virustotal.com)"
+        Show-Animated-Text -text "Analysts are usually provided an enterprise premium account, you can get the API key at (https://www.virustotal.com/gui/my-apikey)."
 
         Write-Host "`nKnown Issues: " -ForegroundColor Red
         Show-Animated-Text -text "--> When user selects clear screen, it doesn't clear the whole history which can be seen by scrolling up. But it does clear up the window."
-        Show-Animated-Text -text "--> Terminal output results can be formatted neatly."
         Continue
     }
 
@@ -1510,12 +1568,13 @@ Do {
         -replace 'hxxps', 'https' `
         -replace 'hxxp', 'http' `
         -replace '\[\:\/\/\]', '://' `
-        -replace '\[\.\]', '.'
+        -replace '\[\.\]', '.' `
+        -replace '\[\:\]', ':'
     }
 
     # Ensure valid IOCs are present
     If (-not $iocs) {
-        Write-Host "No valid IOCs found" -ForegroundColor Red
+        Write-Host "No valid IOCs found! YOU CANNOT PASS!!!" -ForegroundColor Red
         Continue
     }
 
@@ -1531,7 +1590,8 @@ Do {
     $_ -replace 'https', 'hxxps' `
        -replace 'http', 'hxxp' `
        -replace '://', '[://]' `
-       -replace '\.', '[.]'
+       -replace '\.', '[.]' `
+       -replace '\:', '[:]'
     }
 
     # Separate the IOCs by type
@@ -1552,7 +1612,7 @@ Do {
             "ip" { $ipIocs += $ioc }
             "private_ip" { $privipIocs += $ioc }
             "hash" { $hashIocs += $ioc }
-            default { Write-Host "Invalid IOC: $ioc" -ForegroundColor Red }
+            default { Write-Host "$ioc is an invalid IOC! YOU CANNOT PASS!!!" -ForegroundColor Red }
         }
     }
 
